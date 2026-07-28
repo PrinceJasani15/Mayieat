@@ -2,17 +2,30 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // Construct PostgreSQL Pool configuration
+const isSSLRequired =
+  !!process.env.DATABASE_URL &&
+  (process.env.DATABASE_URL.includes('neon.tech') ||
+    process.env.DATABASE_URL.includes('sslmode=require') ||
+    process.env.DB_SSL === 'true');
+
 const poolConfig = process.env.DATABASE_URL
-  ? { connectionString: process.env.DATABASE_URL }
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: isSSLRequired ? { rejectUnauthorized: false } : false,
+      max: 20, // Max concurrent client connections in pool
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    }
   : {
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT, 10) || 5432,
       database: process.env.DB_NAME || 'mayieat_db',
       user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || '',
-      max: 20, // Max concurrent client connections in pool
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      max: 20,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 10000,
     };
 
 const pool = new Pool(poolConfig);

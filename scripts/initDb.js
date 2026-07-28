@@ -10,6 +10,35 @@ const dbPassword = process.env.DB_PASSWORD || 'Prince@15';
 const targetDb = process.env.DB_NAME || 'mayieat_db';
 
 async function initializeDatabase() {
+  const schemaPath = path.join(__dirname, '../sql/schema.sql');
+  const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+
+  // Support direct DATABASE_URL for Neon PostgreSQL cloud migration
+  if (process.env.DATABASE_URL) {
+    console.log('Connecting to Cloud PostgreSQL Database via DATABASE_URL...');
+    const isSSL =
+      process.env.DATABASE_URL.includes('neon.tech') ||
+      process.env.DATABASE_URL.includes('sslmode=require');
+    const client = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: isSSL ? { rejectUnauthorized: false } : false,
+    });
+
+    try {
+      await client.connect();
+      console.log('Successfully connected to Cloud PostgreSQL Database.');
+      console.log('Executing schema.sql DDL...');
+      await client.query(schemaSql);
+      console.log('Schema DDL executed successfully! All tables, indexes, and extensions are ready.');
+    } catch (err) {
+      console.error('Error executing schema.sql on Cloud PostgreSQL:', err.message);
+      process.exit(1);
+    } finally {
+      await client.end();
+    }
+    return;
+  }
+
   console.log(`Connecting to PostgreSQL server at ${dbHost}:${dbPort} as user '${dbUser}'...`);
 
   // Step 1: Connect to default 'postgres' database to verify connection & ensure target database exists
@@ -58,9 +87,6 @@ async function initializeDatabase() {
   try {
     await targetClient.connect();
     console.log(`Connected to database "${targetDb}".`);
-
-    const schemaPath = path.join(__dirname, '../sql/schema.sql');
-    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
     console.log('Executing schema.sql DDL...');
     await targetClient.query(schemaSql);
