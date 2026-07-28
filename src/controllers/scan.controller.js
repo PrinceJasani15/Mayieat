@@ -196,12 +196,10 @@ async function scanPhoto(req, res) {
 
     // If no barcode detected and request came to photo endpoint, run Gemini Vision for Meal Plate analysis
     const userId = req.user ? req.user.user_id : null;
-    const localFileName = req.file.filename;
-    const localImageUrl = `${BASE_URL}/uploads/${localFileName}`;
-    const imagePath = req.file.path;
+    const imageUrl = req.file.path || req.file.secure_url;
 
     // Analyze photo using Google Gemini Vision AI
-    const visionResult = await analyzeMealPhoto(imagePath);
+    const visionResult = await analyzeMealPhoto(imageUrl);
 
     // Fetch User Health Profile if authenticated
     let userProfile = {};
@@ -230,7 +228,7 @@ async function scanPhoto(req, res) {
         visionResult.product_name,
         'AI Photo Recognition',
         `${visionResult.estimated_portion_grams}g portion`,
-        localImageUrl,
+        imageUrl,
         base.base_nutri_score,
         base.base_grade
       ]
@@ -248,7 +246,7 @@ async function scanPhoto(req, res) {
           product_name: visionResult.product_name,
           brand: 'AI Photo Recognition',
           package_size: `${visionResult.estimated_portion_grams}g portion`,
-          image_url: localImageUrl,
+          image_url: imageUrl,
           detected_items: visionResult.detected_items
         },
         scoring: {

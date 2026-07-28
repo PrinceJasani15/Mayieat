@@ -1,14 +1,29 @@
-const fs = require('fs');
-const { visionModel } = require('../config/gemini');
+const axios = require('axios');
+const { getModel } = require('../config/gemini');
 
 /**
- * Sends image file to Google Gemini Vision API to analyze plate contents
- * @param {string} imagePath - Absolute file path of uploaded image
+ * Sends image URL, buffer, or base64 to Google Gemini Vision API to analyze plate contents
+ * @param {string|Buffer} imageInput - Cloudinary image URL or image buffer
  */
-async function analyzeMealPhoto(imagePath) {
+async function analyzeMealPhoto(imageInput) {
   try {
-    const fileData = fs.readFileSync(imagePath);
-    const imageBase64 = fileData.toString('base64');
+    let imageBase64 = '';
+    let mimeType = 'image/jpeg';
+
+    if (typeof imageInput === 'string' && (imageInput.startsWith('http://') || imageInput.startsWith('https://'))) {
+      // Download Cloudinary image via HTTP GET as ArrayBuffer
+      const response = await axios.get(imageInput, { responseType: 'arraybuffer' });
+      imageBase64 = Buffer.from(response.data).toString('base64');
+      if (response.headers['content-type']) {
+        mimeType = response.headers['content-type'];
+      }
+    } else if (Buffer.isBuffer(imageInput)) {
+      imageBase64 = imageInput.toString('base64');
+    } else if (typeof imageInput === 'string') {
+      imageBase64 = imageInput;
+    } else {
+      throw new Error('Invalid image input provided to analyzeMealPhoto');
+    }
 
     const prompt = `
 You are MayiEat's AI Vision Nutritionist. Analyze this food plate photo and respond ONLY with a raw JSON object (no markdown, no backticks, no markdown code block markers).
@@ -34,18 +49,18 @@ Required JSON Structure:
 }
 `;
 
+    const visionModel = getModel('gemini-1.5-flash');
     const result = await visionModel.generateContent([
       prompt,
       {
         inlineData: {
           data: imageBase64,
-          mimeType: 'image/jpeg'
+          mimeType: mimeType
         }
       }
     ]);
 
     const responseText = result.response.text();
-    // Clean potential markdown quotes formatting
     const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsedData = JSON.parse(cleanedText);
 

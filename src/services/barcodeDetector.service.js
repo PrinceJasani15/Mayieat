@@ -1,4 +1,5 @@
 const sharp = require('sharp');
+const axios = require('axios');
 const {
   MultiFormatReader,
   BarcodeFormat,
@@ -73,12 +74,19 @@ function decodeFromRgbaBuffer(pixelBuffer, width, height) {
 }
 
 /**
- * Multi-pass barcode detection from image path or buffer
+ * Multi-pass barcode detection from image URL, path, or buffer
  */
 async function detectBarcodeFromImage(inputImage) {
   try {
     console.log('Backend Barcode Detection Started');
-    const imagePipeline = sharp(inputImage).rotate(); // Auto-rotate via EXIF
+    let imageBuffer = inputImage;
+
+    if (typeof inputImage === 'string' && (inputImage.startsWith('http://') || inputImage.startsWith('https://'))) {
+      const response = await axios.get(inputImage, { responseType: 'arraybuffer' });
+      imageBuffer = Buffer.from(response.data);
+    }
+
+    const imagePipeline = sharp(imageBuffer).rotate(); // Auto-rotate via EXIF
 
     const metadata = await imagePipeline.metadata();
     console.log(`Image Size: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);

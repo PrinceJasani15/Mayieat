@@ -19,9 +19,6 @@ app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use(morgan('dev'));
 
-// Static Route for Uploaded Meal Photos
-const uploadsPath = path.join(__dirname, '../uploads');
-app.use('/uploads', express.static(uploadsPath));
 
 // Direct AI Endpoint (as specified in API Requirements)
 app.post('/api/ai/nutrition', coachController.chat);
@@ -81,7 +78,7 @@ if (require.main === module) {
     console.log(` MayiEat Backend Server running on http://localhost:${PORT}`);
     console.log(` Health Check: http://localhost:${PORT}/api/health`);
     console.log(` Direct AI Endpoint: http://localhost:${PORT}/api/ai/nutrition`);
-    console.log(` Static Uploads: http://localhost:${PORT}/uploads`);
+    console.log(` Cloudinary Storage: Configured & Active`);
     console.log(`=======================================================`);
   });
 }
