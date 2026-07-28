@@ -49,25 +49,32 @@ async function chat(req, res) {
       });
     }
 
+    // Helper to validate UUID format for PostgreSQL queries
+    const isValidUuid = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
     // 4. Fetch User Profile & Chat History for Memory Context
     let userProfile = {};
     let conversationHistory = Array.isArray(clientHistory) ? clientHistory : [];
 
-    if (req.user && req.user.user_id) {
+    if (req.user && isValidUuid(req.user.user_id)) {
       const userId = req.user.user_id;
 
-      // Fetch saved Health Profile from DB
-      const profileRes = await query('SELECT * FROM health_profiles WHERE user_id = $1', [userId]);
-      if (profileRes.rows.length > 0) {
-        userProfile = profileRes.rows[0];
-      }
-
-      // Fetch saved Chat History from DB for memory context
-      if (conversationHistory.length === 0) {
-        const sessionRes = await query('SELECT chat_history FROM ai_coach_sessions WHERE user_id = $1', [userId]);
-        if (sessionRes.rows.length > 0) {
-          conversationHistory = sessionRes.rows[0].chat_history || [];
+      try {
+        // Fetch saved Health Profile from DB
+        const profileRes = await query('SELECT * FROM health_profiles WHERE user_id = $1', [userId]);
+        if (profileRes.rows.length > 0) {
+          userProfile = profileRes.rows[0];
         }
+
+        // Fetch saved Chat History from DB for memory context
+        if (conversationHistory.length === 0) {
+          const sessionRes = await query('SELECT chat_history FROM ai_coach_sessions WHERE user_id = $1', [userId]);
+          if (sessionRes.rows.length > 0) {
+            conversationHistory = sessionRes.rows[0].chat_history || [];
+          }
+        }
+      } catch (dbReadErr) {
+        console.warn('[MayiEat AI Coach] Non-fatal DB read warning:', dbReadErr.message);
       }
     }
 
@@ -87,21 +94,25 @@ async function chat(req, res) {
     console.log(`[MayiEat AI Coach] Processing query: "${sanitizedMessage.substring(0, 60)}..."`);
     const replyText = await generateCoachResponse(sanitizedMessage, conversationHistory, userProfile);
 
-    // 6. Save Session History in PostgreSQL if authenticated
-    if (req.user && req.user.user_id) {
-      const userId = req.user.user_id;
-      const updatedHistory = [...conversationHistory];
-      updatedHistory.push({ role: 'user', content: sanitizedMessage, timestamp: new Date().toISOString() });
-      updatedHistory.push({ role: 'assistant', content: replyText, timestamp: new Date().toISOString() });
+    // 6. Save Session History in PostgreSQL if authenticated with valid UUID
+    if (req.user && isValidUuid(req.user.user_id)) {
+      try {
+        const userId = req.user.user_id;
+        const updatedHistory = [...conversationHistory];
+        updatedHistory.push({ role: 'user', content: sanitizedMessage, timestamp: new Date().toISOString() });
+        updatedHistory.push({ role: 'assistant', content: replyText, timestamp: new Date().toISOString() });
 
-      await query(
-        `INSERT INTO ai_coach_sessions (user_id, chat_history)
-         VALUES ($1, $2)
-         ON CONFLICT (user_id) DO UPDATE SET
-           chat_history = EXCLUDED.chat_history,
-           updated_at = CURRENT_TIMESTAMP`,
-        [userId, JSON.stringify(updatedHistory.slice(-20))] // Retain last 20 messages for context
-      );
+        await query(
+          `INSERT INTO ai_coach_sessions (user_id, chat_history)
+           VALUES ($1, $2)
+           ON CONFLICT (user_id) DO UPDATE SET
+             chat_history = EXCLUDED.chat_history,
+             updated_at = CURRENT_TIMESTAMP`,
+          [userId, JSON.stringify(updatedHistory.slice(-20))] // Retain last 20 messages for context
+        );
+      } catch (dbWriteErr) {
+        console.warn('[MayiEat AI Coach] Non-fatal DB session save warning:', dbWriteErr.message);
+      }
     }
 
     // 7. Return JSON adhering exactly to specification

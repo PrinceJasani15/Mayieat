@@ -17,10 +17,10 @@ function getGenAIClient() {
  * List of Gemini models to try in fallback order
  */
 const MODEL_PRIORITY = [
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
-  'gemini-2.5-flash'
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash'
 ];
 
 /**
@@ -28,7 +28,7 @@ const MODEL_PRIORITY = [
  * @param {string} modelName 
  * @param {string} systemInstruction 
  */
-function getModel(modelName = 'gemini-1.5-flash', systemInstruction = '') {
+function getModel(modelName = 'gemini-2.5-flash', systemInstruction = '') {
   const genAI = getGenAIClient();
   const options = { model: modelName };
   if (systemInstruction) {
