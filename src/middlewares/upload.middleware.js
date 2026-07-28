@@ -2,10 +2,21 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+const os = require('os');
+
+// Determine writeable uploads directory (use os.tmpdir() on Vercel / serverless environment)
+let uploadDir = path.join(__dirname, '../../uploads');
+if (process.env.VERCEL) {
+  uploadDir = path.join(os.tmpdir(), 'uploads');
+}
+
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('[Upload Middleware] Could not create upload directory, falling back to OS temp dir:', err.message);
+  uploadDir = os.tmpdir();
 }
 
 // Multer Disk Storage Engine

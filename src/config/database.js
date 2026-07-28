@@ -56,8 +56,8 @@ async function runAutoMigrations() {
 runAutoMigrations();
 
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle PostgreSQL client:', err);
-  process.exit(-1);
+  console.error('Unexpected error on idle PostgreSQL client:', err ? err.message : err);
+  // Do NOT call process.exit(-1) on serverless lambdas to prevent crashing Vercel functions
 });
 
 /**

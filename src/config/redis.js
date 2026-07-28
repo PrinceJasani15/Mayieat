@@ -1,38 +1,54 @@
 const { createClient } = require('redis');
 require('dotenv').config();
 
-const redisUrl = process.env.REDIS_URL || `redis://${process.env.REDIS_HOST || '127.0.0.1'}:${process.env.REDIS_PORT || 6379}`;
+const hasRedisConfig = !!(process.env.REDIS_URL || process.env.REDIS_HOST);
+let redisClient = null;
 
-const redisClient = createClient({
-  url: redisUrl,
-  password: process.env.REDIS_PASSWORD || undefined,
-});
+if (hasRedisConfig) {
+  const redisUrl =
+    process.env.REDIS_URL ||
+    `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}`;
 
-redisClient.on('connect', () => {
-  console.log('Redis client connecting...');
-});
+  redisClient = createClient({
+    url: redisUrl,
+    password: process.env.REDIS_PASSWORD || undefined,
+  });
 
-redisClient.on('ready', () => {
-  console.log('Redis client connected and ready for caching.');
-});
+  redisClient.on('connect', () => {
+    console.log('Redis client connecting...');
+  });
 
-redisClient.on('error', (err) => {
-  console.error('Redis Client Error:', err.message);
-});
+  redisClient.on('ready', () => {
+    console.log('Redis client connected and ready for caching.');
+  });
 
-redisClient.on('end', () => {
-  console.log('Redis client connection closed.');
-});
+  redisClient.on('error', (err) => {
+    console.error('Redis Client Error:', err.message);
+  });
 
-// Self-executing connection initialization
-(async () => {
-  try {
-    if (!redisClient.isOpen) {
-      await redisClient.connect();
+  redisClient.on('end', () => {
+    console.log('Redis client connection closed.');
+  });
+
+  // Self-executing connection initialization
+  (async () => {
+    try {
+      if (!redisClient.isOpen) {
+        await redisClient.connect();
+      }
+    } catch (error) {
+      console.warn('[Redis] Connection skipped/failed:', error.message);
     }
-  } catch (error) {
-    console.error('Failed to initialize Redis connection:', error.message);
-  }
-})();
+  })();
+} else {
+  // Safe dummy fallback object when Redis is not configured
+  redisClient = {
+    get: async () => null,
+    set: async () => null,
+    del: async () => null,
+    isOpen: false,
+    on: () => {},
+  };
+}
 
 module.exports = redisClient;

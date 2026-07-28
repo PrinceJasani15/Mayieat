@@ -44,6 +44,16 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Root Route (for Vercel deployment confirmation)
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    app: 'MayiEat Backend API',
+    message: 'Server is running smoothly on Vercel!',
+    healthCheck: '/api/health'
+  });
+});
+
 // Master REST API Router
 app.use('/api/v1', apiRoutes);
 
@@ -64,14 +74,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start Express Server
-app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(` MayiEat Backend Server running on http://localhost:${PORT}`);
-  console.log(` Health Check: http://localhost:${PORT}/api/health`);
-  console.log(` Direct AI Endpoint: http://localhost:${PORT}/api/ai/nutrition`);
-  console.log(` Static Uploads: http://localhost:${PORT}/uploads`);
-  console.log(`=======================================================`);
-});
+// Start Express Server only when executed directly (not when imported on Vercel serverless)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`=======================================================`);
+    console.log(` MayiEat Backend Server running on http://localhost:${PORT}`);
+    console.log(` Health Check: http://localhost:${PORT}/api/health`);
+    console.log(` Direct AI Endpoint: http://localhost:${PORT}/api/ai/nutrition`);
+    console.log(` Static Uploads: http://localhost:${PORT}/uploads`);
+    console.log(`=======================================================`);
+  });
+}
 
 module.exports = app;
