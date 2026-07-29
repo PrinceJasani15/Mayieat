@@ -53,13 +53,14 @@ async function scanBarcode(req, res) {
 
     // Save or upsert food record in database for historical reference
     const foodUpsert = await query(
-      `INSERT INTO foods (barcode, product_name, brand, package_size, image_url, base_nutri_score, nutri_grade)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO foods (barcode, product_name, brand, package_size, image_url, base_nutri_score, nutri_grade, data_source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (barcode) DO UPDATE SET
          product_name = EXCLUDED.product_name,
          brand = EXCLUDED.brand,
          base_nutri_score = EXCLUDED.base_nutri_score,
          nutri_grade = EXCLUDED.nutri_grade,
+         data_source = EXCLUDED.data_source,
          updated_at = CURRENT_TIMESTAMP
        RETURNING food_id`,
       [
@@ -69,11 +70,41 @@ async function scanBarcode(req, res) {
         product.package_size,
         product.image_url,
         base.base_nutri_score,
-        base.base_grade
+        base.base_grade,
+        product.data_source || 'OpenFoodFacts'
       ]
     );
 
     const foodId = foodUpsert.rows[0].food_id;
+
+    // Save or upsert nutrition facts table
+    if (product.macros_per_100g) {
+      await query(
+        `INSERT INTO nutrition_facts (
+           food_id, calories_100g, protein_100g, carbs_100g, sugar_100g, fat_100g, sat_fat_100g, fiber_100g, sodium_mg_100g
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (food_id) DO UPDATE SET
+           calories_100g = EXCLUDED.calories_100g,
+           protein_100g = EXCLUDED.protein_100g,
+           carbs_100g = EXCLUDED.carbs_100g,
+           sugar_100g = EXCLUDED.sugar_100g,
+           fat_100g = EXCLUDED.fat_100g,
+           sat_fat_100g = EXCLUDED.sat_fat_100g,
+           fiber_100g = EXCLUDED.fiber_100g,
+           sodium_mg_100g = EXCLUDED.sodium_mg_100g`,
+        [
+          foodId,
+          product.macros_per_100g.calories_100g || 0,
+          product.macros_per_100g.protein_100g || 0,
+          product.macros_per_100g.carbs_100g || 0,
+          product.macros_per_100g.sugar_100g || 0,
+          product.macros_per_100g.fat_100g || 0,
+          product.macros_per_100g.sat_fat_100g || 0,
+          product.macros_per_100g.fiber_100g || 0,
+          product.macros_per_100g.sodium_mg_100g || 0
+        ]
+      );
+    }
 
     // Save barcode scan history if user is authenticated
     if (userId) {
@@ -84,6 +115,10 @@ async function scanBarcode(req, res) {
     }
 
     console.log(`Nutrition Loaded Successfully`);
+
+    const attributionText = product.data_source === 'Gemini AI'
+      ? 'Nutrition data & AI resolution by Google Gemini'
+      : (product.data_source === 'Local Database' ? 'Nutrition data from Local Database Cache' : 'Nutrition data by OpenFoodFacts · AI by Google Gemini');
 
     // Return Scan Result Card payload
     return res.status(200).json({
@@ -115,7 +150,7 @@ async function scanBarcode(req, res) {
           explanation: `This product has ${product.macros_per_100g.sugar_100g}g of sugar and ${product.macros_per_100g.sat_fat_100g}g of saturated fat per 100g. ${personalized.verdict}`,
           practical_tip: 'Consider pairing with high-fiber foods to stabilize digestion!'
         },
-        attribution: 'Nutrition data by OpenFoodFacts · AI by Google Gemini'
+        attribution: attributionText
       }
     });
   } catch (error) {
@@ -128,8 +163,9 @@ async function scanBarcode(req, res) {
 }
 
 /**
- * Detect Barcode from Uploaded Image Endpoint
+ * Detect Barcode from Uploaded Barcode Image File Endpoint
  * POST /api/v1/scan/detect-barcode
+ * (Used when analyzing barcode photos uploaded via camera or file upload)
  */
 async function detectBarcode(req, res) {
   try {

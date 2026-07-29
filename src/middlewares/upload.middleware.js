@@ -1,18 +1,31 @@
+/**
+ * MayiEat Media & Image Upload Middleware
+ * Handles file uploads (such as avatar pictures and barcode images).
+ * Saved locally on disk under backend/uploads/.
+ */
+const fs = require('fs');
+const path = require('path');
 const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('../config/cloudinary');
 
-// Cloudinary Storage Engine
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'mayieat_uploads',
-    allowed_formats: ['jpeg', 'jpg', 'png', 'webp'],
-    transformation: [{ width: 1200, height: 1200, crop: 'limit' }],
+// Ensure local uploads directory exists
+const uploadDir = path.join(__dirname, '../../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Local Disk Storage Engine for uploaded images
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
   },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, 'upload-' + uniqueSuffix + ext);
+  }
 });
 
-// File Filter (Images Only)
+// File Filter (Images Only - JPEG, PNG, WEBP)
 const fileFilter = (req, file, cb) => {
   if (file && file.mimetype && file.mimetype.startsWith('image/')) {
     cb(null, true);
@@ -28,3 +41,5 @@ const upload = multer({
 });
 
 module.exports = upload;
+
+

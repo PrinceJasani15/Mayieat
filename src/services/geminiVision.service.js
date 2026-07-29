@@ -1,9 +1,11 @@
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 const { getModel } = require('../config/gemini');
 
 /**
- * Sends image URL, buffer, or base64 to Google Gemini Vision API to analyze plate contents
- * @param {string|Buffer} imageInput - Cloudinary image URL or image buffer
+ * Sends image URL, file path, buffer, or base64 to Google Gemini Vision API to analyze plate contents
+ * @param {string|Buffer} imageInput - Image URL, local file path, or image buffer
  */
 async function analyzeMealPhoto(imageInput) {
   try {
@@ -11,12 +13,20 @@ async function analyzeMealPhoto(imageInput) {
     let mimeType = 'image/jpeg';
 
     if (typeof imageInput === 'string' && (imageInput.startsWith('http://') || imageInput.startsWith('https://'))) {
-      // Download Cloudinary image via HTTP GET as ArrayBuffer
+      // Download remote image via HTTP GET as ArrayBuffer
       const response = await axios.get(imageInput, { responseType: 'arraybuffer' });
       imageBase64 = Buffer.from(response.data).toString('base64');
       if (response.headers['content-type']) {
         mimeType = response.headers['content-type'];
       }
+    } else if (typeof imageInput === 'string' && fs.existsSync(imageInput)) {
+      // Read local file from disk
+      const fileBuffer = fs.readFileSync(imageInput);
+      imageBase64 = fileBuffer.toString('base64');
+      const ext = path.extname(imageInput).toLowerCase();
+      if (ext === '.png') mimeType = 'image/png';
+      else if (ext === '.webp') mimeType = 'image/webp';
+      else mimeType = 'image/jpeg';
     } else if (Buffer.isBuffer(imageInput)) {
       imageBase64 = imageInput.toString('base64');
     } else if (typeof imageInput === 'string') {
@@ -49,7 +59,7 @@ Required JSON Structure:
 }
 `;
 
-    const visionModel = getModel('gemini-1.5-flash');
+    const visionModel = getModel('gemini-2.5-flash');
     const result = await visionModel.generateContent([
       prompt,
       {

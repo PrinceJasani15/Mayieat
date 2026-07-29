@@ -227,8 +227,10 @@ async function uploadAvatar(req, res) {
     }
 
     const userId = req.user.user_id;
-    // Multer-storage-cloudinary provides the Cloudinary HTTPS URL in req.file.path
-    const avatarUrl = req.file.path || req.file.secure_url;
+    const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+    const avatarUrl = req.file.filename 
+      ? `${BASE_URL}/uploads/${req.file.filename}` 
+      : (req.file.path || '');
 
     await query(
       'UPDATE users SET avatar_url = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
