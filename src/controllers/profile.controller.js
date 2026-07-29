@@ -213,43 +213,6 @@ async function saveProfile(req, res) {
   }
 }
 
-/**
- * Upload User Profile Picture Avatar
- * POST /api/v1/profile/avatar
- */
-async function uploadAvatar(req, res) {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No image attached for avatar upload.'
-      });
-    }
-
-    const userId = req.user.user_id;
-    const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
-    const avatarUrl = req.file.filename 
-      ? `${BASE_URL}/uploads/${req.file.filename}` 
-      : (req.file.path || '');
-
-    await query(
-      'UPDATE users SET avatar_url = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-      [avatarUrl, userId]
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: 'Profile picture updated successfully!',
-      avatar_url: avatarUrl
-    });
-  } catch (error) {
-    console.error('Upload Avatar Error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error uploading profile picture: ' + error.message
-    });
-  }
-}
 
 /**
  * Change Password Endpoint
@@ -400,7 +363,6 @@ async function getAchievements(req, res) {
 module.exports = {
   getProfile,
   saveProfile,
-  uploadAvatar,
   changePassword,
   getAchievements
 };

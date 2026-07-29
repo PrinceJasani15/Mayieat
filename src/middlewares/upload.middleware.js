@@ -1,45 +1,9 @@
 /**
  * MayiEat Media & Image Upload Middleware
- * Handles file uploads (such as avatar pictures and barcode images).
- * Saved locally on disk under backend/uploads/.
+ * DISABLED: Image upload feature is disabled in this release to support serverless deployment (Vercel).
  */
-const fs = require('fs');
-const path = require('path');
-const multer = require('multer');
 
-// Ensure local uploads directory exists
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+module.exports = {};
 
-// Local Disk Storage Engine for uploaded images
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, 'upload-' + uniqueSuffix + ext);
-  }
-});
-
-// File Filter (Images Only - JPEG, PNG, WEBP)
-const fileFilter = (req, file, cb) => {
-  if (file && file.mimetype && file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files (JPEG, PNG, WEBP) are allowed!'), false);
-  }
-};
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter,
-});
-
-module.exports = upload;
 
 
