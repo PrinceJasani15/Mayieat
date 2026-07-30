@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { query } = require('../config/database');
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+// const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
 
 /**
  * Calculates Age from Date of Birth string (YYYY-MM-DD)
@@ -10,7 +10,7 @@ function calculateAge(dobStr) {
   if (!dobStr) return 30;
   const birthDate = new Date(dobStr);
   if (isNaN(birthDate.getTime())) return 30;
-  
+
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();

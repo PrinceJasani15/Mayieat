@@ -3,7 +3,7 @@ const { query } = require('../config/database');
 const { getProductByBarcode } = require('../services/openFoodFacts.service');
 const { calculateBaseScore, calculatePersonalizedScore } = require('../utils/scoreCalculator');
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+// const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
 
 /**
  * Scan Food Barcode Endpoint
